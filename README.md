@@ -99,9 +99,9 @@ hl.plugin.splitrow.settoprowratio(2 / 3) -- top two thirds, bottom third
 
 Most plugin commands are expected to have keybinds for the layout to feel correct. The exact keys do not matter. The examples below are only suggested bindings.
 
-###Note
+### Note
 
-I bind the number keys for normal workspaces and the F1-F10 keys for top row profiles.
+I bind the number keys for normal workspaces and the F1-F10 keys for top row profiles. Most issues you may experience are related to not using these plugin commands on your keybinds.
 
 ### Move windows between rows
 
