@@ -4,42 +4,34 @@ This is a hobby project I created for my own personal use. But I am very happy w
 
 # hyprsplitrow
 
-`hyprsplitrow` is a Hyprland layout plugin for large single-monitor setups where you want one physical display to behave like two horizontal virtual monitors.
+hyprsplitrow is a Hyprland layout plugin for large single-monitor setups where one physical display should behave like two horizontal virtual monitors.
 
-It was built for setups where each row of the layout should act like its own work area. The top row (profiles) switch independent from normal workspace switching, while the bottom row follows normal Hyprland workspace switching. In practice, it feels about 95% similar to the old X11-style virtual split monitor workflow, but implemented as a Hyprland layout plugin instead of a fake monitor/output configuration.
+It splits the monitor into a top row and bottom row. The top row uses independent profiles that do not change when normal workspaces switch. The bottom row follows normal Hyprland workspace switching.
 
-This is intended for large single-monitor setups, especially large 4K displays. Side-by-side ultrawide splitting is not supported yet. That may be added later if there is interest.
+The goal is to feel close to the old X11 virtual split-monitor workflow, but without fake monitor/output configuration. In practice, the workflow is about 95% similar, implemented as a Hyprland layout plugin.
+
+This is mainly intended for large 4K single-monitor setups. Side-by-side ultrawide splitting is not supported yet, but may be added later if there is demand.
 
 ## What problem does it solve?
 
-Hyprland normally treats one physical monitor as one workspace area. On very large single displays, that can be awkward if you want part of the screen to stay independent while the rest switches between normal workspaces.
+Hyprland normally treats one physical monitor as one workspace area. On large displays, it can be useful to keep one part of the screen independent while the rest switches between normal workspaces.
 
-Common examples:
-
-- Keep chat, docs, monitoring tools, or a browsers visible in the top row or vise versa.
-- Switch normal workspaces in the bottom row.
-- Move windows between the two rows with keybinds.
-- Fullscreen a window inside only its row instead of taking over the whole monitor.
-
-You can fake parts of this with pinned windows, special workspaces, or manual window rules, but those approaches tend to break focus, z-order, placement, fullscreen, tooltips, animations, or workspace switching. 
-`hyprsplitrow` handles this as an active layout instead.
+This plugin avoids the focus, placement, z-order, fullscreen, and workspace-switching problems that can happen when trying to fake this with pinned windows, special workspaces, or window rules.
 
 ## Features
 
-- Splits one monitor into a top row and bottom row.
-- Both rows are tiled column workspaces.
-- Pseudo-fullscreen window inside each row.
-- Custom top/bottom ratios. (defaults to one third of the monitor height)
-- Live update the top/bottom ratio.
-- Ten top profiles (default).
-- Top profiles are independent from normal workspace switching.
-- Bottom row follows normal Hyprland workspace switching.
-- Move focused windows between top and bottom rows.
-- Move windows left/right within their current row.
-- Resize windows within their current row.
-- Top profile switching uses a subtle fade animation.
-- New windows spawn next to the current focused window.
-- Runtime state persistence for window ordering, resize weights, fullscreen state.
+- Top/bottom monitor split.
+- Top profiles independent from workspace switching.
+- Bottom row follows normal Hyprland workspaces.
+- Simple column layout for each row.
+- Move windows between rows.
+- Move and resize windows within a row.
+- Row-local pseudo-fullscreen.
+- Configurable top/bottom ratio.
+- Ten top profiles.
+- Subtle fade animation when switching top profiles.
+- Focus-aware new window placement.
+- Runtime persistence for ordering, resize weights, and fullscreen state.
 
 ## Install with hyprpm
 
