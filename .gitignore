@@ -1,0 +1,7 @@
+hyprsplitrow.so
+*.o
+*.so
+.cache/
+build/
+compile_commands.json
+compile_flags.txt

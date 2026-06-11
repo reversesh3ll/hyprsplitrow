@@ -1,0 +1,12 @@
+[repository]
+name = "hyprsplitrow"
+authors = ["d1wepn"]
+
+[hyprsplitrow]
+description = "A Hyprland layout plugin that splits a large single monitor into independent top and bottom rows."
+authors = ["d1wepn"]
+output = "hyprsplitrow.so"
+build = [
+    "make clean",
+    "make",
+]
