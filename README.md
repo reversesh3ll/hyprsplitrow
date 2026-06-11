@@ -1,4 +1,4 @@
-##Disclaimer
+## Disclaimer
 
 This is a hobby project I created for my own personal use. But I am very happy with it, so thought others may find it useful. AI was used extensively during the development of this plugin.
 
