@@ -66,6 +66,29 @@ If Hyprland permission management is enabled:
 hl.permission("/usr/(bin|local/bin)/hyprpm", "plugin", "allow")
 ```
 
+## Upgrading from 0.1
+
+Version 0.2 renames the split regions and adds vertical left/right mode.
+
+This is a breaking change. Update your Lua config and keybinds before loading the new plugin.
+
+| Old command | New command |
+| --- | --- |
+| `movetop()` | `moveprimary()` |
+| `movebottom()` | `movesecondary()` |
+| `togglerow()` | `toggleregion()` |
+| `settoprowratio(ratio)` | `setsplitratio(ratio)` |
+| `showprofile(index)` | `showprimaryprofile(index)` |
+| `sendtoprofile(index)` | `sendprimaryprofile(index)` |
+
+The old commands have been removed. No compatibility aliases are provided.
+
+The state cache has also changed. Version 0.2 uses:
+
+```text
+~/.cache/hyprsplitrow-primary-secondary/state.txt
+```
+
 ## Basic configuration
 
 The layout name remains `splitrow` on this branch:
