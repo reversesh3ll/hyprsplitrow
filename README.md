@@ -1,59 +1,43 @@
-## Disclaimer
-
-This is a hobby project I created for my own personal use. But I am very happy with it, so thought others may find it useful. AI was used extensively during the development of this plugin.
-
 # hyprsplitrow
 
-hyprsplitrow is a Hyprland layout plugin for large single-monitor setups where one physical display should behave like two horizontal virtual monitors.
+`hyprsplitrow` is a Hyprland layout plugin for large single-monitor setups where one physical display behaves like two independent regions.
 
-It splits the monitor into a top row and bottom row. The top row uses independent profiles that do not change when normal workspaces switch. The bottom row follows normal Hyprland workspace switching.
+The current layout remains a horizontal split. The **primary region** occupies the upper portion of the monitor and uses profiles independent from normal workspace switching. The **secondary region** occupies the remaining portion and follows normal Hyprland workspace switching.
 
-The goal is to feel close to the old X11 virtual split-monitor workflow, but without fake monitor/output configuration. In practice, the workflow is about 95% similar, implemented as a Hyprland layout plugin.
-
-This is mainly intended for large 4K single-monitor setups. Side-by-side ultrawide splitting is not supported yet, but may be added later if there is demand.
+This branch is the naming refactor for future split directions. It intentionally uses only `primary` and `secondary` terminology. Old directional Lua commands and old state-file records are not supported here.
 
 ## What problem does it solve?
 
-Hyprland normally treats one physical monitor as one workspace area. On large displays, it can be useful to keep one part of the screen independent while the rest switches between normal workspaces.
+Hyprland normally treats one monitor as one workspace area. On a large display, it is useful to keep one region stable while another follows normal workspace changes.
 
-This plugin avoids the focus, placement, z-order, fullscreen, and workspace-switching problems that can happen when trying to fake this with pinned windows, special workspaces, or window rules.
+`hyprsplitrow` provides this without relying on fake outputs, pinned-window rules, or special workspace workarounds that can interfere with focus, placement, fullscreen, and workspace movement.
 
 ## Features
 
-- Top/bottom monitor split.
-- Top profiles independent from workspace switching.
-- Bottom row follows normal Hyprland workspaces.
-- Simple column layout for each row.
-- Move windows between rows.
-- Move and resize windows within a row.
-- Row-local pseudo-fullscreen.
-- Configurable top/bottom ratio.
-- Ten top profiles.
-- Subtle fade animation when switching top profiles.
-- Focus-aware new window placement.
-- Runtime persistence for ordering, resize weights, and fullscreen state.
+- Horizontal primary/secondary monitor split.
+- Primary profiles independent from workspace switching.
+- Secondary region follows normal Hyprland workspaces.
+- Move, reorder, and resize windows within a region.
+- Move windows between regions.
+- Region-local pseudo-fullscreen.
+- Configurable primary-region ratio.
+- Ten primary profiles.
+- Focus-aware window placement and profile reveal.
+- Runtime persistence for order, resize weights, and pseudo-fullscreen state.
+
+## Development branch status
+
+This branch is a **rename-only** change. Behaviour remains horizontal and should match the existing layout. Vertical splitting is not implemented yet.
 
 ## Install with hyprpm
 
-Add the repository:
-
 ```bash
 hyprpm add https://github.com/reversesh3ll/hyprsplitrow
-```
-
-Enable the plugin:
-
-```bash
 hyprpm enable hyprsplitrow
-```
-
-Load enabled plugins:
-
-```bash
 hyprpm reload
 ```
 
-To load enabled hyprpm plugins automatically on Hyprland startup, add this to your Lua config:
+To load enabled plugins automatically on Hyprland startup:
 
 ```lua
 hl.on("hyprland.start", function()
@@ -61,7 +45,7 @@ hl.on("hyprland.start", function()
 end)
 ```
 
-If you use Hyprland permission management, allow hyprpm to load plugins:
+If Hyprland permission management is enabled:
 
 ```lua
 hl.permission("/usr/(bin|local/bin)/hyprpm", "plugin", "allow")
@@ -69,7 +53,7 @@ hl.permission("/usr/(bin|local/bin)/hyprpm", "plugin", "allow")
 
 ## Basic configuration
 
-Set the Hyprland layout to `splitrow`:
+The layout name remains `splitrow` on this branch:
 
 ```lua
 hl.config({
@@ -79,39 +63,35 @@ hl.config({
 })
 ```
 
-Optional row ratio presets:
+Set the primary-region ratio:
 
 ```lua
-hl.plugin.splitrow.settoprowratio(1 / 3) -- top third, bottom two thirds
-hl.plugin.splitrow.settoprowratio(1 / 2) -- equal split
-hl.plugin.splitrow.settoprowratio(2 / 3) -- top two thirds, bottom third
+hl.plugin.splitrow.setsplitratio(1 / 3)
+hl.plugin.splitrow.setsplitratio(1 / 2)
+hl.plugin.splitrow.setsplitratio(2 / 3)
 ```
 
-## Keybinds
+## Required commands and suggested keybinds
 
-Most plugin commands are expected to have keybinds for the layout to feel correct. The exact keys do not matter. The examples below are only suggested bindings.
+Most commands need bindings for the layout to work as intended. The key choices below are only examples.
 
-### Note
-
-I bind the number keys for normal workspaces and the F1-F10 keys for top row profiles. Most issues you may experience are related to not using these plugin commands on your keybinds.
-
-### Move windows between rows
+### Move windows between regions
 
 ```lua
 hl.bind("SUPER + SHIFT + Up", function()
-  hl.plugin.splitrow.movetop()
+  hl.plugin.splitrow.moveprimary()
 end)
 
 hl.bind("SUPER + SHIFT + Down", function()
-  hl.plugin.splitrow.movebottom()
+  hl.plugin.splitrow.movesecondary()
 end)
 
 hl.bind("SUPER + grave", function()
-  hl.plugin.splitrow.togglerow()
+  hl.plugin.splitrow.toggleregion()
 end)
 ```
 
-### Pseudo-fullscreen inside the current row
+### Region-local pseudo-fullscreen
 
 ```lua
 hl.bind("SUPER + D", function()
@@ -119,7 +99,7 @@ hl.bind("SUPER + D", function()
 end)
 ```
 
-### Resize the focused window within its row
+### Resize the focused window
 
 ```lua
 hl.bind("SUPER + ALT + Left", function()
@@ -131,7 +111,7 @@ hl.bind("SUPER + ALT + Right", function()
 end, { repeating = true })
 ```
 
-### Move the focused window within its row
+### Reorder windows inside their region
 
 ```lua
 hl.bind("SUPER + SHIFT + Left", function()
@@ -143,41 +123,41 @@ hl.bind("SUPER + SHIFT + Right", function()
 end)
 ```
 
-### Change row ratio
+### Change split ratio
 
 ```lua
 hl.bind("SUPER + ALT + 1", function()
-  hl.plugin.splitrow.settoprowratio(1 / 3)
+  hl.plugin.splitrow.setsplitratio(1 / 3)
 end)
 
 hl.bind("SUPER + ALT + 2", function()
-  hl.plugin.splitrow.settoprowratio(1 / 2)
+  hl.plugin.splitrow.setsplitratio(1 / 2)
 end)
 
 hl.bind("SUPER + ALT + 3", function()
-  hl.plugin.splitrow.settoprowratio(2 / 3)
+  hl.plugin.splitrow.setsplitratio(2 / 3)
 end)
 ```
 
-### Switch top profiles and send windows to top profiles
+### Switch primary profiles and assign windows
 
 ```lua
 for i = 1, 10 do
   local index = i
 
   hl.bind("SUPER + F" .. tostring(index), function()
-    hl.plugin.splitrow.showprofile(index)
+    hl.plugin.splitrow.showprimaryprofile(index)
   end)
 
   hl.bind("SUPER + SHIFT + F" .. tostring(index), function()
-    hl.plugin.splitrow.sendtoprofile(index)
+    hl.plugin.splitrow.sendprimaryprofile(index)
   end)
 end
 ```
 
 ### Move windows to normal workspaces
 
-Use the plugin helper instead of Hyprland's normal workspace move command when you want this to work correctly for top-profile windows:
+Use the plugin command so windows in primary profiles are released correctly before the native workspace move:
 
 ```lua
 for i = 1, 10 do
@@ -190,160 +170,93 @@ for i = 1, 10 do
 end
 ```
 
-This releases a top-profile window from splitrow state before moving it to the target normal workspace.
+## Commands
 
-## Requirements (build)
+```lua
+hl.plugin.splitrow.moveprimary()
+hl.plugin.splitrow.movesecondary()
+hl.plugin.splitrow.toggleregion()
+
+hl.plugin.splitrow.moveleft()
+hl.plugin.splitrow.moveright()
+
+hl.plugin.splitrow.shrinkfocused()
+hl.plugin.splitrow.growfocused()
+
+hl.plugin.splitrow.togglefocusedfullscreen()
+hl.plugin.splitrow.setsplitratio(1 / 3)
+
+hl.plugin.splitrow.showprimaryprofile(1)
+hl.plugin.splitrow.sendprimaryprofile(1)
+hl.plugin.splitrow.movetoworkspace(1)
+```
+
+Valid primary profile numbers are `1` through `10`.
+
+## Requirements
 
 - Hyprland with plugin support.
-- Hyprland headers installed.
-- `make`.
-- `pkg-config`.
-- A C++ compiler that supports the C++ standard required by your Hyprland headers.
-
-For hyprpm users, make sure the usual Hyprland plugin build dependencies are installed. Hyprland's plugin documentation lists `cpio`, `cmake`, `git`, `meson`, and `gcc` as common requirements for hyprpm plugin builds.
+- Hyprland headers matching the running Hyprland build.
+- `make` and `pkg-config`.
+- A C++ compiler supporting the C++ version required by your Hyprland headers.
 
 ## Manual build
-
-Clone the repository:
 
 ```bash
 git clone https://github.com/reversesh3ll/hyprsplitrow.git
 cd hyprsplitrow
-```
-
-Build the plugin:
-
-```bash
 make clean
 make
-```
 
-The build should produce:
-
-```text
-hyprsplitrow.so
-```
-
-Load it manually:
-
-```bash
 hyprctl plugin load "$PWD/hyprsplitrow.so"
 hyprctl reload
 ```
 
-Unload it manually:
+Unload it with:
 
 ```bash
 hyprctl plugin unload "$PWD/hyprsplitrow.so"
 ```
-
-The path passed to `hyprctl plugin load` must be absolute. `$PWD/hyprsplitrow.so` is fine because the shell expands it to an absolute path.
-
-## Commands
-
-### Row commands
-
-```lua
-hl.plugin.splitrow.movetop()
-hl.plugin.splitrow.movebottom()
-hl.plugin.splitrow.togglerow()
-```
-
-### Row-local movement
-
-```lua
-hl.plugin.splitrow.moveleft()
-hl.plugin.splitrow.moveright()
-```
-
-### Row-local resizing
-
-```lua
-hl.plugin.splitrow.shrinkfocused()
-hl.plugin.splitrow.growfocused()
-```
-
-### Pseudo-fullscreen
-
-```lua
-hl.plugin.splitrow.togglefocusedfullscreen()
-```
-
-### Top row ratio
-
-```lua
-hl.plugin.splitrow.settoprowratio(1 / 3)
-hl.plugin.splitrow.settoprowratio(1 / 2)
-hl.plugin.splitrow.settoprowratio(2 / 3)
-```
-
-### Top profiles
-
-```lua
-hl.plugin.splitrow.showprofile(1)
-hl.plugin.splitrow.sendtoprofile(1)
-```
-
-Valid profile numbers are `1` through `10`.
-
-### Workspace movement
-
-```lua
-hl.plugin.splitrow.movetoworkspace(1)
-```
-
-This is the preferred command for moving a focused top-profile window into a normal workspace.
 
 ## State file
 
-The plugin stores runtime state here:
+This branch uses a separate state file and does not read the previous directional state format:
 
 ```text
-~/.cache/hyprsplitrow/state.txt
+$XDG_CACHE_HOME/hyprsplitrow-primary-secondary/state.txt
 ```
 
-The state file is used for plugin reload persistence inside the same Hyprland process.
+Fallback path:
 
-It stores things like:
-
-- active top profile
-- top profile membership
-- top profile order
-- top profile resize weights
-- top pseudo-fullscreen state
-- bottom row order
-- bottom row resize weights
-- bottom pseudo-fullscreen state
-
-The state file is not intended to be a long-term session restore mechanism across full Hyprland restarts.
-
-## Development workflow
-
-Recommended local workflow:
-
-```bash
-make clean
-make
-hyprctl plugin unload "$PWD/hyprsplitrow.so"
-hyprctl plugin load "$PWD/hyprsplitrow.so"
-hyprctl reload
+```text
+~/.cache/hyprsplitrow-primary-secondary/state.txt
 ```
 
-Useful checks:
+The file uses state format version `4` and persists plugin reload state only within the same Hyprland process.
 
-```bash
-hyprctl plugin list
-hyprctl -j clients
-cat ~/.cache/hyprsplitrow/state.txt
+## Test checklist
+
+```text
+plugin builds
+plugin loads
+primary profile switching
+window focus reveal across primary profiles
+move window to primary region
+move window to secondary region
+move window between workspaces
+primary-region pseudo-fullscreen
+secondary-region pseudo-fullscreen
+resize in both regions
+window ordering in both regions
+plugin reload persistence
 ```
 
 ## Known limitations
 
-- Only horizontal top/bottom splitting is supported.
-- Side-by-side ultrawide splitting is not supported yet.
-- Rows currently use a simple column layout.
-- Top profiles are not real Hyprland workspaces.
-- This is a plugin-level layout, not a true Hyprland core monitor split.
-- Fullscreen is implemented as row-local pseudo-fullscreen, not native Hyprland fullscreen.
-- State persistence is for plugin reloads inside the same Hyprland process. It is not a full session restore system.
-- Hyprland plugins use internal APIs, so the plugin may need updates when Hyprland changes.
+- Only the current horizontal split is implemented.
+- Vertical left/right splitting is not implemented on this branch yet.
+- Regions use a simple column layout.
+- Primary profiles are not real Hyprland workspaces.
+- Pseudo-fullscreen is not native Hyprland fullscreen.
+- State persistence is not a full session restore system.
+- Hyprland plugin internals can change between Hyprland releases.
