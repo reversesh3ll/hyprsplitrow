@@ -1,6 +1,6 @@
 # hyprsplitrow
 
-`hyprsplitrow` is a Hyprland layout plugin for large single-monitor setups where one physical display behaves like two independent regions.
+`hyprsplitrow` is a Hyprland layout plugin for large single-monitor setups (such as ultrawide monitors) where one physical display behaves like two independent regions.
 
 Choose a split direction with `setsplitaxis`:
 
