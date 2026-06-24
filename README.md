@@ -275,26 +275,6 @@ Fallback path:
 
 The file uses state format version `5` and persists plugin reload state only within the same Hyprland process. Version 4 state from the rename branch is read as a horizontal split.
 
-## Test checklist
-
-```text
-plugin builds
-plugin loads
-horizontal split: primary above secondary
-vertical split: primary left of secondary
-switch axis at runtime
-primary profile switching
-window focus reveal across primary profiles
-move window to primary region
-move window to secondary region
-move window between workspaces
-primary-region pseudo-fullscreen
-secondary-region pseudo-fullscreen
-resize in both regions
-window ordering in both regions
-plugin reload persistence
-```
-
 ## Known limitations
 
 - Regions use a simple column layout in both split directions.
