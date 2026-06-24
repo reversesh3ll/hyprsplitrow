@@ -2,9 +2,12 @@
 
 `hyprsplitrow` is a Hyprland layout plugin for large single-monitor setups where one physical display behaves like two independent regions.
 
-The current layout remains a horizontal split. The **primary region** occupies the upper portion of the monitor and uses profiles independent from normal workspace switching. The **secondary region** occupies the remaining portion and follows normal Hyprland workspace switching.
+Choose a split direction with `setsplitaxis`:
 
-This branch is the naming refactor for future split directions. It intentionally uses only `primary` and `secondary` terminology. Old directional Lua commands and old state-file records are not supported here.
+- **horizontal**: primary region at the top, secondary region at the bottom
+- **vertical**: primary region on the left, secondary region on the right
+
+Primary profiles are independent from normal workspace switching. The secondary region follows normal Hyprland workspace switching. The layout uses only `primary` and `secondary` terminology.
 
 ## What problem does it solve?
 
@@ -14,7 +17,7 @@ Hyprland normally treats one monitor as one workspace area. On a large display, 
 
 ## Features
 
-- Horizontal primary/secondary monitor split.
+- Horizontal top/bottom or vertical left/right monitor split.
 - Primary profiles independent from workspace switching.
 - Secondary region follows normal Hyprland workspaces.
 - Move, reorder, and resize windows within a region.
@@ -25,9 +28,21 @@ Hyprland normally treats one monitor as one workspace area. On a large display, 
 - Focus-aware window placement and profile reveal.
 - Runtime persistence for order, resize weights, and pseudo-fullscreen state.
 
-## Development branch status
+## Split direction
 
-This branch is a **rename-only** change. Behaviour remains horizontal and should match the existing layout. Vertical splitting is not implemented yet.
+Horizontal is the default:
+
+```lua
+hl.plugin.splitrow.setsplitaxis("horizontal")
+```
+
+For a left/right split on an ultrawide or wide display:
+
+```lua
+hl.plugin.splitrow.setsplitaxis("vertical")
+```
+
+Changing the axis updates the layout immediately and is saved in the plugin state file.
 
 ## Install with hyprpm
 
@@ -70,6 +85,8 @@ hl.plugin.splitrow.setsplitratio(1 / 3)
 hl.plugin.splitrow.setsplitratio(1 / 2)
 hl.plugin.splitrow.setsplitratio(2 / 3)
 ```
+
+In horizontal mode, the ratio controls the primary region height. In vertical mode, it controls the primary region width.
 
 ## Required commands and suggested keybinds
 
@@ -185,6 +202,7 @@ hl.plugin.splitrow.growfocused()
 
 hl.plugin.splitrow.togglefocusedfullscreen()
 hl.plugin.splitrow.setsplitratio(1 / 3)
+hl.plugin.splitrow.setsplitaxis("vertical")
 
 hl.plugin.splitrow.showprimaryprofile(1)
 hl.plugin.splitrow.sendprimaryprofile(1)
@@ -232,13 +250,16 @@ Fallback path:
 ~/.cache/hyprsplitrow-primary-secondary/state.txt
 ```
 
-The file uses state format version `4` and persists plugin reload state only within the same Hyprland process.
+The file uses state format version `5` and persists plugin reload state only within the same Hyprland process. Version 4 state from the rename branch is read as a horizontal split.
 
 ## Test checklist
 
 ```text
 plugin builds
 plugin loads
+horizontal split: primary above secondary
+vertical split: primary left of secondary
+switch axis at runtime
 primary profile switching
 window focus reveal across primary profiles
 move window to primary region
@@ -253,9 +274,8 @@ plugin reload persistence
 
 ## Known limitations
 
-- Only the current horizontal split is implemented.
-- Vertical left/right splitting is not implemented on this branch yet.
-- Regions use a simple column layout.
+- Regions use a simple column layout in both split directions.
+- Primary profiles are available only in the primary region.
 - Primary profiles are not real Hyprland workspaces.
 - Pseudo-fullscreen is not native Hyprland fullscreen.
 - State persistence is not a full session restore system.

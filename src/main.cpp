@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
@@ -25,6 +26,7 @@
 #include <unistd.h>
 
 extern "C" double lua_tonumberx(lua_State* state, int index, int* isNumber);
+extern "C" const char* lua_tolstring(lua_State* state, int index, std::size_t* length);
 
 static HANDLE g_pluginHandle = nullptr;
 
@@ -32,7 +34,7 @@ namespace {
 
 constexpr const char* PLUGIN_NAME = "hyprsplitrow";
 constexpr const char* TILED_ALGO_NAME = "splitrow";
-constexpr const char* PLUGIN_VERSION = "0.2.0-primary-secondary";
+constexpr const char* PLUGIN_VERSION = "0.2.1-primary-secondary-vertical";
 constexpr double DEFAULT_PRIMARY_REGION_RATIO = 1.0 / 3.0;
 constexpr double MIN_PRIMARY_REGION_RATIO = 0.10;
 constexpr double MAX_PRIMARY_REGION_RATIO = 0.90;
@@ -80,6 +82,16 @@ enum class EFocusedSplitRegion {
     Primary,
 };
 
+enum class ESplitAxis {
+    Horizontal,
+    Vertical,
+};
+
+struct SSplitAreas {
+    CBox primary;
+    CBox secondary;
+};
+
 enum class ESpawnIntentSource {
     FocusedWindow,
     PrimaryProfileSwitch,
@@ -105,6 +117,7 @@ std::unordered_map<std::uintptr_t, double> g_secondaryWindowWeights;
 std::vector<std::uintptr_t> g_secondaryWindowOrder;
 std::unordered_set<std::uintptr_t> g_secondaryFullscreenWindowKeys;
 double g_primaryRegionRatio = DEFAULT_PRIMARY_REGION_RATIO;
+ESplitAxis g_splitAxis = ESplitAxis::Horizontal;
 
 Hyprutils::Signal::CHyprSignalListener g_windowCloseListener;
 Hyprutils::Signal::CHyprSignalListener g_windowDestroyListener;
@@ -143,12 +156,55 @@ bool boxesNearlyEqual(const CBox& a, const CBox& b);
 void setSpawnIntent(EFocusedSplitRegion region, ESpawnIntentSource source);
 void updateSpawnIntentFromFocusedWindow(const PHLWINDOW& window);
 std::optional<EFocusedSplitRegion> regionFromCursorForArea(const CBox& area);
+const char* splitAxisName(ESplitAxis axis);
+std::optional<ESplitAxis> splitAxisFromName(const std::string& name);
+SSplitAreas calculateSplitAreas(const CBox& area);
 void saveSecondaryWindowOrder(const std::vector<std::uintptr_t>& order);
 void removeSecondaryWindowFromPersistentState(std::uintptr_t key);
 SDispatchResult setSplitRatio(double ratio);
+SDispatchResult setSplitAxis(ESplitAxis axis);
 SDispatchResult releaseActiveWindowFromSplitRegionState();
 SDispatchResult moveActiveWindowToWorkspace(int workspace);
 
+
+const char* splitAxisName(ESplitAxis axis) {
+    switch (axis) {
+        case ESplitAxis::Horizontal:
+            return "horizontal";
+        case ESplitAxis::Vertical:
+            return "vertical";
+    }
+
+    return "horizontal";
+}
+
+std::optional<ESplitAxis> splitAxisFromName(const std::string& name) {
+    if (name == "horizontal")
+        return ESplitAxis::Horizontal;
+
+    if (name == "vertical")
+        return ESplitAxis::Vertical;
+
+    return std::nullopt;
+}
+
+SSplitAreas calculateSplitAreas(const CBox& area) {
+    if (g_splitAxis == ESplitAxis::Vertical) {
+        const double primaryWidth = std::floor(area.w * g_primaryRegionRatio);
+
+        return {
+            .primary = {area.x, area.y, primaryWidth, area.h},
+            .secondary = {area.x + primaryWidth, area.y, area.w - primaryWidth, area.h},
+        };
+    }
+
+    const double primaryHeight = std::floor(area.h * g_primaryRegionRatio);
+
+    return {
+        .primary = {area.x, area.y, area.w, primaryHeight},
+        .secondary = {area.x, area.y + primaryHeight, area.w, area.h - primaryHeight},
+    };
+}
 
 std::filesystem::path persistentStatePath() {
     if (const char* xdgCache = std::getenv("XDG_CACHE_HOME"); xdgCache && *xdgCache)
@@ -198,7 +254,10 @@ void loadPersistentState() {
         return;
 
     int savedPid = 0;
+    int stateVersion = 0;
     int activeProfile = g_primaryState.activeProfile;
+    ESplitAxis loadedSplitAxis = ESplitAxis::Horizontal;
+    double loadedPrimaryRegionRatio = g_primaryRegionRatio;
     std::unordered_map<int, SPrimaryProfileData> loadedPrimaryProfiles;
     std::unordered_map<std::uintptr_t, int> loadedWindowProfiles;
     std::unordered_map<std::uintptr_t, double> loadedSecondaryWeights;
@@ -216,8 +275,25 @@ void loadPersistentState() {
             int version = 0;
             stream >> version;
 
-            if (version != 4)
+            // Version 4 was the primary/secondary rename branch. It did not
+            // persist an axis, so treat it as the original horizontal split.
+            if (version != 4 && version != 5)
                 return;
+
+            stateVersion = version;
+        } else if (kind == "split_axis") {
+            std::string axisName;
+            stream >> axisName;
+
+            const auto axis = splitAxisFromName(axisName);
+            if (axis)
+                loadedSplitAxis = *axis;
+        } else if (kind == "split_ratio") {
+            double ratio = 0.0;
+            stream >> ratio;
+
+            if (std::isfinite(ratio))
+                loadedPrimaryRegionRatio = std::clamp(ratio, MIN_PRIMARY_REGION_RATIO, MAX_PRIMARY_REGION_RATIO);
         } else if (kind == "hyprland_pid") {
             stream >> savedPid;
         } else if (kind == "active_primary_profile") {
@@ -293,6 +369,9 @@ void loadPersistentState() {
         }
     }
 
+    if (stateVersion == 0)
+        return;
+
     // Window pointer addresses are only trusted inside the same Hyprland
     // process. This keeps old state files from a previous Hyprland session
     // from moving unrelated windows after address reuse.
@@ -307,6 +386,8 @@ void loadPersistentState() {
         }
     }
 
+    g_splitAxis = loadedSplitAxis;
+    g_primaryRegionRatio = loadedPrimaryRegionRatio;
     g_primaryState.activeProfile = activeProfile;
     g_primaryState.windowProfiles = std::move(loadedWindowProfiles);
     g_primaryState.profiles = std::move(loadedPrimaryProfiles);
@@ -325,8 +406,10 @@ void savePersistentState() {
     if (!file)
         return;
 
-    file << "version 4\n";
+    file << "version 5\n";
     file << "hyprland_pid " << getpid() << "\n";
+    file << "split_axis " << splitAxisName(g_splitAxis) << "\n";
+    file << "split_ratio " << g_primaryRegionRatio << "\n";
     file << "active_primary_profile " << g_primaryState.activeProfile << "\n";
 
     std::unordered_set<std::uintptr_t> writtenSecondaryOrder;
@@ -1047,8 +1130,12 @@ std::optional<EFocusedSplitRegion> regionFromCursorForArea(const CBox& area) {
     if (cursor.x < area.x || cursor.x >= area.x + area.w || cursor.y < area.y || cursor.y >= area.y + area.h)
         return std::nullopt;
 
-    const double primaryHeight = std::floor(area.h * g_primaryRegionRatio);
-    return cursor.y < area.y + primaryHeight ? EFocusedSplitRegion::Primary : EFocusedSplitRegion::Secondary;
+    const auto splitAreas = calculateSplitAreas(area);
+
+    if (g_splitAxis == ESplitAxis::Vertical)
+        return cursor.x < splitAreas.secondary.x ? EFocusedSplitRegion::Primary : EFocusedSplitRegion::Secondary;
+
+    return cursor.y < splitAreas.secondary.y ? EFocusedSplitRegion::Primary : EFocusedSplitRegion::Secondary;
 }
 
 SDispatchResult setSplitRatio(double ratio) {
@@ -1065,6 +1152,18 @@ SDispatchResult setSplitRatio(double ratio) {
 
     g_primaryRegionRatio = clamped;
     markInactivePrimaryProfilesDirty();
+    savePersistentState();
+    recalculateAllInstances();
+    return {.success = true, .error = ""};
+}
+
+SDispatchResult setSplitAxis(ESplitAxis axis) {
+    if (g_splitAxis == axis)
+        return {.success = true, .error = ""};
+
+    g_splitAxis = axis;
+    markInactivePrimaryProfilesDirty();
+    savePersistentState();
     recalculateAllInstances();
     return {.success = true, .error = ""};
 }
@@ -2005,33 +2104,13 @@ class CSplitRegionAlgorithm final : public Layout::ITiledAlgorithm {
         if (const auto workspace = space->workspace(); workspace && workspace->m_monitor)
             fullscreenWorkArea = workspace->m_monitor->logicalBoxMinusReserved();
 
-        const double primaryHeight = std::floor(workArea.h * g_primaryRegionRatio);
-        const CBox primaryArea{
-            workArea.x,
-            workArea.y,
-            workArea.w,
-            primaryHeight,
-        };
-        const CBox secondaryArea{
-            workArea.x,
-            workArea.y + primaryHeight,
-            workArea.w,
-            workArea.h - primaryHeight,
-        };
+        const auto splitAreas = calculateSplitAreas(workArea);
+        const CBox primaryArea = splitAreas.primary;
+        const CBox secondaryArea = splitAreas.secondary;
 
-        const double fullscreenPrimaryHeight = std::floor(fullscreenWorkArea.h * g_primaryRegionRatio);
-        const CBox fullscreenPrimaryArea{
-            fullscreenWorkArea.x,
-            fullscreenWorkArea.y,
-            fullscreenWorkArea.w,
-            fullscreenPrimaryHeight,
-        };
-        const CBox fullscreenSecondaryArea{
-            fullscreenWorkArea.x,
-            fullscreenWorkArea.y + fullscreenPrimaryHeight,
-            fullscreenWorkArea.w,
-            fullscreenWorkArea.h - fullscreenPrimaryHeight,
-        };
+        const auto fullscreenSplitAreas = calculateSplitAreas(fullscreenWorkArea);
+        const CBox fullscreenPrimaryArea = fullscreenSplitAreas.primary;
+        const CBox fullscreenSecondaryArea = fullscreenSplitAreas.secondary;
 
         std::vector<SP<Layout::ITarget>> primaryTargets;
         std::vector<SP<Layout::ITarget>> secondaryTargets;
@@ -2620,6 +2699,32 @@ int luaSetSplitRatio(lua_State* state) {
 }
 
 
+int luaSetSplitAxis(lua_State* state) {
+    if (!state) {
+        notify("splitrow: setsplitaxis expects horizontal or vertical", CHyprColor{1.0F, 0.35F, 0.2F, 1.0F});
+        return 0;
+    }
+
+    const char* axisName = lua_tolstring(state, 1, nullptr);
+    if (!axisName) {
+        notify("splitrow: setsplitaxis expects horizontal or vertical", CHyprColor{1.0F, 0.35F, 0.2F, 1.0F});
+        return 0;
+    }
+
+    const auto axis = splitAxisFromName(axisName);
+    if (!axis) {
+        notify("splitrow: setsplitaxis expects horizontal or vertical", CHyprColor{1.0F, 0.35F, 0.2F, 1.0F});
+        return 0;
+    }
+
+    const auto result = setSplitAxis(*axis);
+    if (!result.success && !result.error.empty())
+        notify(result.error, CHyprColor{1.0F, 0.35F, 0.2F, 1.0F});
+
+    return 0;
+}
+
+
 std::optional<int> luaPositiveIntegerArgument(lua_State* state, const std::string& commandName, const std::string& valueName) {
     if (!state) {
         notify("splitrow: " + commandName + " expects a " + valueName, CHyprColor{1.0F, 0.35F, 0.2F, 1.0F});
@@ -2713,6 +2818,7 @@ bool registerLuaFunctions() {
     add("shrinkfocused", luaShrinkFocused);
     add("growfocused", luaGrowFocused);
     add("setsplitratio", luaSetSplitRatio);
+    add("setsplitaxis", luaSetSplitAxis);
     add("showprimaryprofile", luaShowPrimaryProfile);
     add("sendprimaryprofile", luaSendToPrimaryProfile);
 
@@ -2739,6 +2845,7 @@ void unregisterLuaFunctions() {
     remove("shrinkfocused");
     remove("growfocused");
     remove("setsplitratio");
+    remove("setsplitaxis");
     remove("showprimaryprofile");
     remove("sendprimaryprofile");
 }
@@ -2830,7 +2937,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
 
     return {
         PLUGIN_NAME,
-        "Two-region split layout for Hyprland with primary profiles, focused region fullscreen, focus-following spawns, and configurable split ratio.",
+        "Two-region horizontal or vertical split layout for Hyprland with primary profiles, region fullscreen, focus-following spawns, and configurable split ratio.",
         "Sarah Mac Carthy + ChatGPT",
         PLUGIN_VERSION
     };
