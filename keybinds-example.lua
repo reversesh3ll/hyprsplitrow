@@ -1,19 +1,4 @@
-for i = 1, 10 do
-  local numberkey = { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 }
-
-  hl.bind("SUPER + SHIFT + code:" .. numberkey[i], function()
-    hl.plugin.splitrow.movetoworkspace(i)
-  end)
-end
-
-hl.bind("SUPER + SHIFT + Up", function()
-  hl.plugin.splitrow.moveprimary()
-end)
-
-hl.bind("SUPER + SHIFT + Down", function()
-  hl.plugin.splitrow.movesecondary()
-end)
-
+-- Switch or send focused window to primary
 for i = 1, 10 do
   local index = i
 
@@ -26,10 +11,28 @@ for i = 1, 10 do
   end)
 end
 
+-- Switch or send focused window to secondary
 for i = 1, 10 do
-    local numberkey = { 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 }
-    hl.unbind("SUPER + ALT + code:" .. numberkey[i])
+  local index = i
+
+  hl.bind("SUPER + code:" .. tostring(index), function()
+    hl.dispatch(hl.dsp.focus({ workspace = workspace_in_group(i) }))
+
+  hl.bind("SUPER + SHIFT + code:" .. tostring(index), function()
+    hl.plugin.splitrow.movetoworkspace(i)
+  end)
 end
+
+-- Move focused window between primary and secondary
+hl.bind("SUPER + SHIFT + Up", function()
+  hl.plugin.splitrow.moveprimary()
+end)
+
+hl.bind("SUPER + SHIFT + Down", function()
+  hl.plugin.splitrow.movesecondary()
+end)
+
+-- Set split axis and split ratio
 hl.bind("SUPER + ALT + 1", function()
   hl.plugin.splitrow.setsplitaxis("horizontal")
   hl.plugin.splitrow.setsplitratio(1 / 3)
@@ -43,11 +46,12 @@ hl.bind("SUPER + ALT + 3", function()
   hl.plugin.splitrow.setsplitratio(2 / 3)
 end)
 
-hl.unbind("SUPER + D")
+-- Toggle pseudo/fake fullscreen on focused window
 hl.bind("SUPER + D", function()
   hl.plugin.splitrow.togglefocusedfullscreen()
 end)
 
+-- Resize focused window
 hl.bind("SUPER + ALT + Left", function()
   hl.plugin.splitrow.shrinkfocused()
 end, { repeating = true })
