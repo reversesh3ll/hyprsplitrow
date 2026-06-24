@@ -1,10 +1,10 @@
 [repository]
 name = "hyprsplitrow"
-authors = ["d1wepn"]
+authors = ["reversesh3ll"]
 
 [hyprsplitrow]
 description = "A Hyprland layout plugin with horizontal or vertical primary/secondary monitor regions."
-authors = ["d1wepn"]
+authors = ["reversesh3ll"]
 output = "hyprsplitrow.so"
 build = [
     "make clean",
