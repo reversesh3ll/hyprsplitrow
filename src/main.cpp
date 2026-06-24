@@ -32,7 +32,7 @@ namespace {
 
 constexpr const char* PLUGIN_NAME = "hyprsplitrow";
 constexpr const char* TILED_ALGO_NAME = "splitrow";
-constexpr const char* PLUGIN_VERSION = "0.1";
+constexpr const char* PLUGIN_VERSION = "0.1.1";
 constexpr double DEFAULT_TOP_ROW_RATIO = 1.0 / 3.0;
 constexpr double MIN_TOP_ROW_RATIO = 0.10;
 constexpr double MAX_TOP_ROW_RATIO = 0.90;
@@ -121,7 +121,7 @@ bool validProfile(int profile);
 std::uintptr_t windowKey(const PHLWINDOW& window);
 PHLWINDOW windowFromKey(std::uintptr_t key);
 bool moveTopWindowInOrder(const PHLWINDOW& window, int delta);
-void showTopProfile(int profile);
+void showTopProfile(int profile, bool focusProfileWindow = true);
 std::uintptr_t focusCandidateKeyForTopProfile(int profile);
 std::vector<std::uintptr_t> liveWindowKeysForTopProfile(int profile);
 void resetProfileFadeAlpha(const PHLWINDOW& window);
@@ -966,14 +966,14 @@ void startTopProfileFade(int fromProfile, int toProfile) {
     }
 }
 
-void showTopProfile(int profile) {
+void showTopProfile(int profile, bool focusProfileWindow) {
     if (!validProfile(profile))
         return;
 
     setSpawnIntent(EFocusedSplitRow::Top, ESpawnIntentSource::TopProfileSwitch);
 
     const auto fromProfile = g_topState.activeProfile;
-    const auto focusCandidateKey = focusCandidateKeyForTopProfile(profile);
+    const auto focusCandidateKey = focusProfileWindow ? focusCandidateKeyForTopProfile(profile) : 0;
 
     if (fromProfile != profile) {
         startTopProfileFade(fromProfile, profile);
@@ -985,6 +985,22 @@ void showTopProfile(int profile) {
 
     if (focusCandidateKey != 0)
         focusWindowByKey(focusCandidateKey);
+}
+
+void revealTopProfileForFocusedWindow(const PHLWINDOW& window) {
+    if (!window)
+        return;
+
+    const auto key = windowKey(window);
+    if (key == 0)
+        return;
+
+    const auto profileIt = g_topState.windowProfiles.find(key);
+    if (profileIt == g_topState.windowProfiles.end() || !validProfile(profileIt->second))
+        return;
+
+    if (profileIt->second != g_topState.activeProfile)
+        showTopProfile(profileIt->second, false);
 }
 
 PHLWINDOW activeWindow() {
@@ -2300,6 +2316,7 @@ bool registerEventListeners() {
         if (reason == Desktop::FOCUS_REASON_WORKSPACE_CHANGE)
             return;
 
+        revealTopProfileForFocusedWindow(window);
         updateSpawnIntentFromFocusedWindow(window);
     });
 
